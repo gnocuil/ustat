@@ -9,11 +9,12 @@
 #include <sys/ioctl.h>
 #include <net/ethernet.h> /* the L2 protocols */
 #include "eth.h"
+#include "data.h"
 
 static int fd;
 char iface[100];
 
-static char macaddr[6];//local
+char macaddr[6];//local
 
 static void getmacaddr()
 {
@@ -26,22 +27,25 @@ static void getmacaddr()
     memcpy(macaddr, buffer.ifr_hwaddr.sa_data, 6);
 }
 
-void printmac(u_int8_t *b) {
-    for (int i = 0; i < 6; ++i) {
-        if (i) printf(":");
-        printf("%02x", b[i]&0xFF);
+void printmac(FILE *fout, u_int8_t *b) {
+    int i;
+    for (i = 0; i < 6; ++i) {
+        if (i) fprintf(fout, ":");
+        fprintf(fout, "%02x", b[i]&0xFF);
     }
 }
 
-void printipv4(char *b) {
-    for (int i = 0; i < 4; ++i) {
-        if (i) printf(".");
-        printf("%d", (uint8_t)b[i]);
+void printipv4(FILE *fout, char *b) {
+    int i;
+    for (i = 0; i < 4; ++i) {
+        if (i) fprintf(fout, ".");
+        fprintf(fout, "%d", (uint8_t)b[i]);
     }
 }
 
 void printipv6(char *b) {
-    for (int i = 0; i < 16; ++i) {
+    int i;
+    for (i = 0; i < 16; ++i) {
         if (i && i % 2 == 0) printf(":");
         printf("%02x", (uint8_t)b[i]);
     }
@@ -64,31 +68,25 @@ void init_eth(char *iface_)
     }
     getmacaddr();
 }
-
+#define OUT 0
 void handle_eth()
 {
     char buf[4000];
-    int count = read(fd, buf, 4000);
-    printf("read %d bytes\n", count);
+    int count = read(fd, buf, 60);
+    if (OUT) printf("read %d bytes\n", count);
     struct ether_header *eth = (struct ether_header*)buf;
-    printf("To  ");
-    printmac(eth->ether_dhost);
-    printf("  From  ");
-    printmac(eth->ether_shost);
-    printf("  Protocol=%x\n", ntohs(eth->ether_type));
+    
+    int len = count;
     if (ntohs(eth->ether_type) == ETHERTYPE_IP) {
-        printf("\tFrom  ");
-        printipv4(buf + 14 + 12);
-        printf("  To  ");
-        printipv4(buf + 14 + 16);
-        printf("\n");
-    }
-    if (ntohs(eth->ether_type) == ETHERTYPE_IPV6) {
-        printf("\tFrom  ");
-        printipv6(buf + 14 + 8);
-        printf("  To  ");
-        printipv6(buf + 14 + 24);
-        printf("\n");
+        len = ntohs(*(uint16_t*)(buf + 14 + 2)) + 14;
+        printf("v4 len=%d\n", len);
+        add(eth->ether_shost, buf + 14 + 12, 4, len, UP);
+        add(eth->ether_dhost, buf + 14 + 16, 4, len, DOWN);
+    } else if (ntohs(eth->ether_type) == ETHERTYPE_IPV6) {
+        len = ntohs(*(uint16_t*)(buf + 14 + 4)) + 14 + 40;
+        printf("v6 len=%d\n", len);
+        add(eth->ether_shost, buf + 14 + 8, 16, len, UP);
+        add(eth->ether_dhost, buf + 14 + 24, 16, len, DOWN);
     }
 }
 
