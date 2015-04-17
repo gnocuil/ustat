@@ -79,7 +79,9 @@ void add(char *mac, char *addr, int addrlen, int datalen, int dir)
 void printJson()
 {
     pthread_rwlock_rdlock(&rwlock);
+    if (strlen(path_tmp) < 5) return;
     FILE *fout = fopen(path_tmp, "w");
+    if (!fout) return;
     fprintf(fout, "{\n");
     struct timeval tv;
     gettimeofday(&tv, NULL);
