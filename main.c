@@ -8,15 +8,18 @@
 static void usage()
 {
 	fprintf(stderr, "Usage: ustat [options] <LISTEN_INTERFACE_NAME>\n");
-	fprintf(stderr, "  options: -o <FILE_PATH>       output json file path\n");
-	fprintf(stderr, "           -a                   allow recording local macaddr\n");
+	fprintf(stderr, "  options: -o <FILE_PATH>  output json file path\n");
+	fprintf(stderr, "           -a              allow recording local macaddr\n");
+	fprintf(stderr, "           -t <TIME_MS>    time interval of file written (default:1000ms)\n");
 	exit(1);
 }
+
+int time_interval = 1000;
 
 static void* json_thread()
 {
     while (1) {
-        usleep(500000);
+        usleep(time_interval * 1000);
         printJson();
     }
 }
@@ -36,6 +39,9 @@ int main(int argc, char **argv)
         } else if (strcmp(argv[i], "-a") == 0) {
             puts("Allow recording packets to/from local mac-addr!");
             allow_local = 1;
+        } else if (strcmp(argv[i], "-t") == 0) {
+            sscanf(argv[++i], "%d", &time_interval);
+            printf("Time interval: %d ms\n", time_interval);
         }
     }
     init_eth(argv[argc - 1]);

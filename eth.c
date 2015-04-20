@@ -68,23 +68,20 @@ void init_eth(char *iface_)
     }
     getmacaddr();
 }
-#define OUT 0
+
 void handle_eth()
 {
     char buf[4000];
     int count = read(fd, buf, 60);
-    if (OUT) printf("read %d bytes\n", count);
     struct ether_header *eth = (struct ether_header*)buf;
     
     int len = count;
     if (ntohs(eth->ether_type) == ETHERTYPE_IP) {
         len = ntohs(*(uint16_t*)(buf + 14 + 2)) + 14;
-        printf("v4 len=%d\n", len);
         add(eth->ether_shost, buf + 14 + 12, 4, len, UP);
         add(eth->ether_dhost, buf + 14 + 16, 4, len, DOWN);
     } else if (ntohs(eth->ether_type) == ETHERTYPE_IPV6) {
         len = ntohs(*(uint16_t*)(buf + 14 + 4)) + 14 + 40;
-        printf("v6 len=%d\n", len);
         add(eth->ether_shost, buf + 14 + 8, 16, len, UP);
         add(eth->ether_dhost, buf + 14 + 24, 16, len, DOWN);
     }
